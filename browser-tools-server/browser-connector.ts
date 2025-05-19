@@ -292,7 +292,7 @@ function processJsonString(jsonString: string, maxLength: number): string {
 }
 
 // Helper to process logs based on settings
-function processLogsWithSettings(logs: any[]) {
+function processLogsWithSettings(logs: any[]): any[] {
   return logs.map((log) => {
     const processedLog = { ...log };
 
@@ -1437,11 +1437,21 @@ export class BrowserConnector {
     });
 
     // Load ignore patterns if specified
+    let ignoreFilePath = "";
     if (argv["ignore-file"]) {
-      await ignoreManager.loadPatternsFromFile(argv["ignore-file"]);
-      console.log(
-        `Browser Tools Server with ignore patterns: ${ignoreManager.getPatternCount()} patterns loaded`
-      );
+      ignoreFilePath = argv["ignore-file"];
+      await ignoreManager.loadPatternsFromFile(ignoreFilePath);
+      console.log(`\n=== Ignore Patterns Loaded ===`);
+      console.log(`Source file: ${ignoreFilePath}`);
+      console.log(`Patterns loaded: ${ignoreManager.getPatternCount()}`);
+
+      if (ignoreManager.getPatternCount() > 0) {
+        console.log(`\nActive ignore patterns:`);
+        ignoreManager.getPatterns().forEach((pattern, index) => {
+          console.log(`  ${index + 1}. ${pattern.toString()}`);
+        });
+        console.log(); // Add empty line for better readability
+      }
     }
 
     console.log(`Starting Browser Tools Server...`);

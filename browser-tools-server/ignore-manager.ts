@@ -75,4 +75,12 @@ export class IgnoreManager {
   getPatternCount(): number {
     return this.patterns.length;
   }
+
+  /**
+   * Get all loaded patterns
+   * @returns Array of RegExp patterns
+   */
+  getPatterns(): RegExp[] {
+    return [...this.patterns];
+  }
 }
