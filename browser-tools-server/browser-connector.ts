@@ -423,6 +423,13 @@ app.post("/extension-log", (req, res) => {
         status: data.status,
         timestamp: data.timestamp,
       };
+
+      // Skip OpenReplay network requests
+      if (data.url && data.url.includes("openreplay")) {
+        console.log("Skipping OpenReplay network request:", logEntry);
+        break;
+      }
+
       console.log("Adding network request:", logEntry);
 
       // Route network requests based on status code
