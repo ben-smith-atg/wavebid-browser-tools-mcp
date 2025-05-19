@@ -1,0 +1,11 @@
+# Example ignore patterns for browser-tools-server
+# Lines starting with # are comments
+# Each line is a regular expression that matches against URLs or console log messages
+
+# Example of ignoring specific domains or endpoints
+analytics\.example\.com
+/metrics$
+
+# Example of ignoring certain types of console messages
+^\[DEBUG\]
+console\.debug 

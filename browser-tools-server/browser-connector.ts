@@ -20,6 +20,8 @@ import {
 } from "./lighthouse/index.js";
 import * as net from "net";
 import { runBestPracticesAudit } from "./lighthouse/best-practices.js";
+import { IgnoreManager } from "./ignore-manager.js";
+import minimist from "minimist";
 
 /**
  * Converts a file path to the appropriate format for the current platform
@@ -248,6 +250,9 @@ app.use(cors());
 app.use(bodyParser.json({ limit: "50mb" }));
 app.use(bodyParser.urlencoded({ limit: "50mb", extended: true }));
 
+// Create an instance of the ignore manager
+const ignoreManager = new IgnoreManager();
+
 // Helper to recursively truncate strings in any data structure
 function truncateStringsInData(data: any, maxLength: number): any {
   if (typeof data === "string") {
@@ -392,12 +397,18 @@ app.post("/extension-log", (req, res) => {
           (data.message?.length > 100 ? "..." : ""),
         timestamp: data.timestamp,
       });
-      consoleLogs.push(data);
-      if (consoleLogs.length > currentSettings.logLimit) {
-        console.log(
-          `Console logs exceeded limit (${currentSettings.logLimit}), removing oldest entry`
-        );
-        consoleLogs.shift();
+
+      // Check if this log should be ignored
+      if (!ignoreManager.shouldIgnoreConsoleLog(data.message)) {
+        consoleLogs.push(data);
+        if (consoleLogs.length > currentSettings.logLimit) {
+          console.log(
+            `Console logs exceeded limit (${currentSettings.logLimit}), removing oldest entry`
+          );
+          consoleLogs.shift();
+        }
+      } else {
+        console.log("Ignoring console log based on pattern match");
       }
       break;
     case "console-error":
@@ -408,12 +419,18 @@ app.post("/extension-log", (req, res) => {
           (data.message?.length > 100 ? "..." : ""),
         timestamp: data.timestamp,
       });
-      consoleErrors.push(data);
-      if (consoleErrors.length > currentSettings.logLimit) {
-        console.log(
-          `Console errors exceeded limit (${currentSettings.logLimit}), removing oldest entry`
-        );
-        consoleErrors.shift();
+
+      // Check if this error should be ignored
+      if (!ignoreManager.shouldIgnoreConsoleLog(data.message)) {
+        consoleErrors.push(data);
+        if (consoleErrors.length > currentSettings.logLimit) {
+          console.log(
+            `Console errors exceeded limit (${currentSettings.logLimit}), removing oldest entry`
+          );
+          consoleErrors.shift();
+        }
+      } else {
+        console.log("Ignoring console error based on pattern match");
       }
       break;
     case "network-request":
@@ -425,23 +442,28 @@ app.post("/extension-log", (req, res) => {
       };
       console.log("Adding network request:", logEntry);
 
-      // Route network requests based on status code
-      if (data.status >= 400) {
-        networkErrors.push(data);
-        if (networkErrors.length > currentSettings.logLimit) {
-          console.log(
-            `Network errors exceeded limit (${currentSettings.logLimit}), removing oldest entry`
-          );
-          networkErrors.shift();
+      // Check if this network request should be ignored
+      if (!ignoreManager.shouldIgnoreNetworkRequest(data.url)) {
+        // Route network requests based on status code
+        if (data.status >= 400) {
+          networkErrors.push(data);
+          if (networkErrors.length > currentSettings.logLimit) {
+            console.log(
+              `Network errors exceeded limit (${currentSettings.logLimit}), removing oldest entry`
+            );
+            networkErrors.shift();
+          }
+        } else {
+          networkSuccess.push(data);
+          if (networkSuccess.length > currentSettings.logLimit) {
+            console.log(
+              `Network success logs exceeded limit (${currentSettings.logLimit}), removing oldest entry`
+            );
+            networkSuccess.shift();
+          }
         }
       } else {
-        networkSuccess.push(data);
-        if (networkSuccess.length > currentSettings.logLimit) {
-          console.log(
-            `Network success logs exceeded limit (${currentSettings.logLimit}), removing oldest entry`
-          );
-          networkSuccess.shift();
-        }
+        console.log("Ignoring network request based on pattern match");
       }
       break;
     case "selected-element":
@@ -1406,6 +1428,22 @@ export class BrowserConnector {
 // Use an async IIFE to allow for async/await in the initial setup
 (async () => {
   try {
+    // Parse command-line arguments
+    const argv = minimist(process.argv.slice(2), {
+      string: ["ignore-file"],
+      alias: {
+        i: "ignore-file",
+      },
+    });
+
+    // Load ignore patterns if specified
+    if (argv["ignore-file"]) {
+      await ignoreManager.loadPatternsFromFile(argv["ignore-file"]);
+      console.log(
+        `Browser Tools Server with ignore patterns: ${ignoreManager.getPatternCount()} patterns loaded`
+      );
+    }
+
     console.log(`Starting Browser Tools Server...`);
     console.log(`Requested port: ${REQUESTED_PORT}`);
 

@@ -437,3 +437,29 @@ A comprehensive browser automation service built on Puppeteer to provide reliabl
   - Resource blocking
   - Cookies and headers customization
   - Locale and timezone emulation
+
+## Ignoring Logs
+
+You can provide an ignore list file to filter out unwanted console logs and network requests:
+
+```bash
+npx @agentdeskai/browser-tools-server@latest --ignore-file ./my-ignore-list.txt
+# Or use the shorthand:
+npx @agentdeskai/browser-tools-server@latest -i ./my-ignore-list.txt
+```
+
+The ignore file should contain one regular expression pattern per line. Lines starting with `#` are treated as comments. For example:
+
+```
+# Example ignore patterns
+analytics\.example\.com
+/metrics$
+^\[DEBUG\]
+```
+
+Each pattern is applied to:
+
+- The message content for console logs and console errors
+- The URL for network requests
+
+Patterns are case-insensitive by default.
